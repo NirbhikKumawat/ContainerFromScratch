@@ -20,6 +20,17 @@ func run() {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWPID, // crates a new PID namespace
 	}
+	const rootfs = "./my-rootfs"
+
+	if err := syscall.Chroot(rootfs); err != nil { // change the root filesystem
+		fmt.Printf("Failed to chroot: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := syscall.Chdir("/"); err != nil { //change working dir to "/" inside the root
+		fmt.Printf("Failed to chdir: %v\n", err)
+		os.Exit(1)
+	}
 
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("Error running command: %v\n", err)
