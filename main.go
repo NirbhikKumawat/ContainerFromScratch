@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"syscall"
 )
 
@@ -49,6 +51,15 @@ func run() {
 func runChild() {
 	fmt.Printf("Running as child (PID %d) inside new namespace\n", os.Getpid())
 
+	cgroupPath := "/sys/fs/cgroup/my-container"
+	pid := os.Getpid()
+
+	procsFile := filepath.Join(cgroupPath, "cgroup.procs")
+	if err := os.WriteFile(procsFile, []byte(strconv.Itoa(pid)), 0644); err != nil {
+		fmt.Printf("Failed to write cgroup procfs: %v\n", err)
+		os.Exit(1)
+	}
+
 	cmdArgs := os.Args[2:]
 	const rootfs = "./my-rootfs"
 
@@ -81,6 +92,17 @@ func runChild() {
 }
 
 func runParent() {
+
+	cgroupPath := "/sys/fs/cgroup/my-container"
+
+	if err := os.MkdirAll(cgroupPath, 0755); err != nil {
+		fmt.Printf("Error creating cgroup directory: %v\n", err)
+	}
+
+	memLimit := "100M"
+	if err := os.WriteFile(filepath.Join(cgroupPath, "memory.max"), []byte(memLimit), 0644); err != nil {
+		fmt.Printf("Error creating memory limit: %v\n", err)
+	}
 	childArgs := append([]string{"child"}, os.Args[2:]...)
 
 	cmd := exec.Command("/proc/self/exe", childArgs...)
@@ -106,6 +128,11 @@ func runParent() {
 	fmt.Println("Child exited, unmounting ./my-rootfs/proc")
 	if err := syscall.Unmount("./my-rootfs/proc", 0); err != nil {
 		fmt.Printf("Error unmounting /proc: %v\n", err)
+	}
+
+	fmt.Println("Removing cgroup directory")
+	if err := os.RemoveAll(cgroupPath); err != nil {
+		fmt.Printf("Error removing cgroup directory: %v\n", err)
 	}
 }
 func main() {
