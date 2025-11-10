@@ -50,8 +50,12 @@ func runChild() {
 	fmt.Printf("Running as child (PID %d) inside new namespace\n", os.Getpid())
 
 	cmdArgs := os.Args[2:]
-
 	const rootfs = "./my-rootfs"
+
+	if err := syscall.Sethostname([]byte("container")); err != nil {
+		fmt.Printf("Error setting hostname: %v\n", err)
+		os.Exit(1)
+	}
 
 	if err := syscall.Chroot(rootfs); err != nil {
 		fmt.Printf("Failed to chroot: %v\n", err)
@@ -86,7 +90,10 @@ func runParent() {
 	cmd.Stderr = os.Stderr
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: syscall.CLONE_NEWPID | syscall.CLONE_NEWNS,
+		Cloneflags: syscall.CLONE_NEWPID |
+			syscall.CLONE_NEWNS |
+			syscall.CLONE_NEWUTS |
+			syscall.CLONE_NEWNET,
 	}
 
 	fmt.Printf("Running as parent (PID %d), launching child\n", os.Getpid())
