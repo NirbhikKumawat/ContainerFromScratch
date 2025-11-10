@@ -95,6 +95,11 @@ func runParent() {
 		fmt.Printf("Error running parent: %v\n", err)
 		os.Exit(1)
 	}
+
+	fmt.Println("Child exited, unmounting ./my-rootfs/proc")
+	if err := syscall.Unmount("./my-rootfs/proc", 0); err != nil {
+		fmt.Printf("Error unmounting /proc: %v\n", err)
+	}
 }
 func main() {
 	if len(os.Args) < 2 {
